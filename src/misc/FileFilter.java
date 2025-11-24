@@ -60,7 +60,7 @@ public class FileFilter {
             for (int i = 0; i < parentPath.length(); i++) {
                 if (parentPath.charAt(i) == '.') dotCount++;
             }
-            if (dotCount == 2) return false; // hide stuff with more than two dots
+            if (dotCount == 2) return false; // hide files with exactly two dots in parent path
 
             if (path.getFileName().toString().endsWith(".part")) return false; // hide parts of a file
 
