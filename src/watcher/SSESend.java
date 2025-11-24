@@ -51,7 +51,10 @@ public final class SSESend implements IWatchCallback {
 
         JSONObject object = GetEventJSON.run(changeType, fullPath, path);
 
-        for (HttpExchange client : ClientStore.get().clients()) {
+        // Use iterator to safely remove clients during iteration
+        java.util.Iterator<HttpExchange> iterator = ClientStore.get().clients().iterator();
+        while (iterator.hasNext()) {
+            HttpExchange client = iterator.next();
             try {
                 client.getResponseBody().write(("data:" + object.toString() + "\n\n").getBytes());
 
@@ -61,8 +64,7 @@ public final class SSESend implements IWatchCallback {
                 ANSI.Print.setFront(196);
                 System.out.println("One of the clients has disconnected, removing it from the list.");
                 ANSI.Print.unsetFront();
-                ClientStore.get().clients().remove(client);
-                continue;
+                iterator.remove();
             }
         }
     }

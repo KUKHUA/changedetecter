@@ -108,6 +108,7 @@ public final class FolderWatcher {
                         WatchEvent.Kind<?> kind = event.kind();
                         if (kind == StandardWatchEventKinds.OVERFLOW) continue;
 
+                        @SuppressWarnings("unchecked")
                         WatchEvent<Path> ev = (WatchEvent<Path>) event;
                         Path name = ev.context();
                         Path child = dir.resolve(name);

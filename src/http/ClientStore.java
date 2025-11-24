@@ -19,15 +19,16 @@
 package http;
 
 import com.sun.net.httpserver.HttpExchange;
-import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /** 
  * The {@code ClientStore} class is a singleton that manages a collection of active HTTP client connections.
  * It allows adding new clients and retrieving the list of currently connected clients.
+ * Uses CopyOnWriteArrayList for thread-safe operations.
  */
 public final class ClientStore {
 
-    private ArrayList<HttpExchange> clients = new ArrayList<HttpExchange>();
+    private CopyOnWriteArrayList<HttpExchange> clients = new CopyOnWriteArrayList<HttpExchange>();
     private static ClientStore instance = null;
 
     private ClientStore(){}
@@ -36,7 +37,7 @@ public final class ClientStore {
         clients.add(t);
     }
 
-    public ArrayList<HttpExchange> clients() {
+    public CopyOnWriteArrayList<HttpExchange> clients() {
         return clients;
     }
 

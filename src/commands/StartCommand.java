@@ -20,6 +20,7 @@ package commands;
 import Command.IHandler;
 import Command.Command;
 import misc.Config;
+import misc.FileFilter;
 import http.http;
 import http.SSEConnect;
 import watcher.SSESend;
@@ -34,6 +35,10 @@ public class StartCommand implements IHandler {
     @Override
     public void handleCommand(Command command) throws Exception {
         Config config = Config.instance();
+        
+        // Initialize blacklist cache once at startup for better performance
+        FileFilter.initializeBlacklists();
+        
         boolean sseEnabled = config.getDefault("sources.sse.enabled", "false").equals("true");
          
         if(sseEnabled){
