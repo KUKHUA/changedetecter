@@ -32,8 +32,9 @@ import java.util.HashSet;
 public class FileFilter {
 
     // Cache for blacklisted files and folders to avoid repeated parsing
-    private static Set<String> blacklistedFilesCache = null;
-    private static Set<String> blacklistedFoldersCache = null;
+    private static volatile Set<String> blacklistedFilesCache = null;
+    private static volatile Set<String> blacklistedFoldersCache = null;
+    private static final Object initLock = new Object();
 
     /**
      * Checks if a given {@link Path} is allowed based on a set of predefined rules.
@@ -55,12 +56,13 @@ public class FileFilter {
             if(isBlacklisted(path)) return false;
 
             // Optimize: count dots without stream operations
+            // Note: This checks for exactly 2 dots (original behavior preserved)
             String parentPath = path.getParent().toString();
             int dotCount = 0;
             for (int i = 0; i < parentPath.length(); i++) {
                 if (parentPath.charAt(i) == '.') dotCount++;
             }
-            if (dotCount == 2) return false; // hide files with exactly two dots in parent path
+            if (dotCount == 2) return false;
 
             if (path.getFileName().toString().endsWith(".part")) return false; // hide parts of a file
 
@@ -145,9 +147,13 @@ public class FileFilter {
     }
 
     public static boolean isBlacklisted(Path path){
-        // Initialize cache on first access if not already initialized
+        // Double-checked locking for thread-safe lazy initialization
         if (blacklistedFilesCache == null || blacklistedFoldersCache == null) {
-            initializeBlacklists();
+            synchronized (initLock) {
+                if (blacklistedFilesCache == null || blacklistedFoldersCache == null) {
+                    initializeBlacklists();
+                }
+            }
         }
 
         boolean hasBlacklistedFolder = blacklistedFoldersCache.contains(path.getParent().toString());

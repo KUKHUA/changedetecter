@@ -54,7 +54,7 @@ import org.json.JSONArray;
  */
 public final class WebhookSend implements IWatchCallback {
     // Cache webhook URLs to avoid repeated parsing
-    private String[] cachedWebHookList = null;
+    private final String[] cachedWebHookList;
 
     public WebhookSend() {
         // Initialize webhook list cache
@@ -68,6 +68,9 @@ public final class WebhookSend implements IWatchCallback {
 
     public void onEvent(String changeType, String fullPath, Path path) {
         if(!FileFilter.isAllowed(path)) return;
+
+        // Skip if no webhooks configured
+        if (cachedWebHookList.length == 0) return;
 
         JSONObject object = GetEventJSON.run(changeType, fullPath, path);
 
