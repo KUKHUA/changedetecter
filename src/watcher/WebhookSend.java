@@ -53,19 +53,28 @@ import org.json.JSONArray;
  * @see FileFilter
  */
 public final class WebhookSend implements IWatchCallback {
-    public void onEvent(String changeType, String fullPath, Path path) {
-        if(!FileFilter.isAllowed(path)) return;
+    // Cache webhook URLs to avoid repeated parsing
+    private final String[] cachedWebHookList;
 
-        JSONObject object = GetEventJSON.run(changeType, fullPath, path);
-        
+    public WebhookSend() {
+        // Initialize webhook list cache
         Config config = Config.instance();
         String inputArrayString = config.getDefault("sources.webhook.urls","null,null");
-        String[] webHookList = Arrays.stream(inputArrayString.split(","))
+        cachedWebHookList = Arrays.stream(inputArrayString.split(","))
             .map(String::trim)
             .filter(string -> !string.equalsIgnoreCase("null"))
             .toArray(String[]::new);
+    }
 
-        for (String webhook : webHookList) {
+    public void onEvent(String changeType, String fullPath, Path path) {
+        if(!FileFilter.isAllowed(path)) return;
+
+        // Skip if no webhooks configured
+        if (cachedWebHookList.length == 0) return;
+
+        JSONObject object = GetEventJSON.run(changeType, fullPath, path);
+
+        for (String webhook : cachedWebHookList) {
             HttpURLConnection connection = null;
             try {
                 URL url = new URL(webhook);

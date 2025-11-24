@@ -20,6 +20,8 @@ package misc;
 
 import java.nio.file.*; 
 import java.util.Arrays;
+import java.util.Set;
+import java.util.HashSet;
 
 /**
  * The {@code FileFilter} class provides utility methods for filtering and classifying file paths.
@@ -28,6 +30,11 @@ import java.util.Arrays;
  * (e.g., "folder", "file").
  */
 public class FileFilter {
+
+    // Cache for blacklisted files and folders to avoid repeated parsing
+    private static volatile Set<String> blacklistedFilesCache = null;
+    private static volatile Set<String> blacklistedFoldersCache = null;
+    private static final Object initLock = new Object();
 
     /**
      * Checks if a given {@link Path} is allowed based on a set of predefined rules.
@@ -48,7 +55,14 @@ public class FileFilter {
         try {
             if(isBlacklisted(path)) return false;
 
-            if (path.getParent().toString().chars().filter(ch -> ch == '.').count() == 2) return false; // hide stuff with more than two dots
+            // Optimize: count dots without stream operations
+            // Note: This checks for exactly 2 dots (original behavior preserved)
+            String parentPath = path.getParent().toString();
+            int dotCount = 0;
+            for (int i = 0; i < parentPath.length(); i++) {
+                if (parentPath.charAt(i) == '.') dotCount++;
+            }
+            if (dotCount == 2) return false;
 
             if (path.getFileName().toString().endsWith(".part")) return false; // hide parts of a file
 
@@ -108,24 +122,42 @@ public class FileFilter {
         return "magical_thing";
     }
 
-    public static boolean isBlacklisted(Path path){
+    /**
+     * Initializes the blacklist cache by parsing configuration values.
+     * This method should be called once during application startup.
+     */
+    public static void initializeBlacklists() {
         Config config = Config.instance();
 
         String blacklistedFileString = config.getDefault("blacklisted.files","null,null");
-        String[] blacklistedFileArray = Arrays.stream(blacklistedFileString.split(","))
-            .map(String::trim)
-            .filter(string -> !string.equalsIgnoreCase("null"))
-            .toArray(String[]::new);
+        blacklistedFilesCache = new HashSet<>(Arrays.asList(
+            Arrays.stream(blacklistedFileString.split(","))
+                .map(String::trim)
+                .filter(string -> !string.equalsIgnoreCase("null"))
+                .toArray(String[]::new)
+        ));
 
-        
         String blacklistedFolderString = config.getDefault("blacklisted.folders","null,null");
-        String[] blacklistedFolderArray = Arrays.stream(blacklistedFolderString.split(","))
-            .map(String::trim)
-            .filter(string -> !string.equalsIgnoreCase("null"))
-            .toArray(String[]::new);
+        blacklistedFoldersCache = new HashSet<>(Arrays.asList(
+            Arrays.stream(blacklistedFolderString.split(","))
+                .map(String::trim)
+                .filter(string -> !string.equalsIgnoreCase("null"))
+                .toArray(String[]::new)
+        ));
+    }
 
-        boolean hasBlacklistedFolder = Arrays.asList(blacklistedFolderArray).contains(path.getParent().toString());
-        boolean hasBlackListedFile = Arrays.asList(blacklistedFileArray).contains(path.getFileName().toString());
+    public static boolean isBlacklisted(Path path){
+        // Double-checked locking for thread-safe lazy initialization
+        if (blacklistedFilesCache == null || blacklistedFoldersCache == null) {
+            synchronized (initLock) {
+                if (blacklistedFilesCache == null || blacklistedFoldersCache == null) {
+                    initializeBlacklists();
+                }
+            }
+        }
+
+        boolean hasBlacklistedFolder = blacklistedFoldersCache.contains(path.getParent().toString());
+        boolean hasBlackListedFile = blacklistedFilesCache.contains(path.getFileName().toString());
 
         return hasBlackListedFile || hasBlacklistedFolder;
     }
